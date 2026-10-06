@@ -1,0 +1,50 @@
+name: Setup Student Repo
+on:
+  create:       
+  push:         
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  setup-repo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Update Badge and Wipe History
+        run: |
+          REPO="${{ github.repository }}"
+          NEW_BADGE="[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/$REPO?quickstart=1)"
+          
+          # Setup Git Identity
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # --- 1. WIPE BASH HISTORY ---
+          if [ -f ".profile/bash_history" ]; then
+            echo > .profile/bash_history
+            git add .profile/bash_history
+          fi
+          
+          # --- 2. UPDATE CODESPACES BADGE ---
+          if ! grep -Fq "$NEW_BADGE" README.md; then
+            sed -i '/codespaces\.new/d' README.md
+            sed -i '/codespaces\/badge\.svg/d' README.md
+            
+            echo "$NEW_BADGE" > tmp.md
+            echo "" >> tmp.md
+            cat README.md >> tmp.md
+            mv tmp.md README.md
+            git add README.md
+          fi
+          
+          # --- 3. COMMIT AND PUSH ---
+          git diff --quiet && git diff --staged --quiet || \
+          git commit -m "Automated: Setup student environment (Badge & History Wipe)"
+          
+          git push
